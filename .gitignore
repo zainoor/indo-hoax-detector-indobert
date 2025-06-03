@@ -1,4 +1,11 @@
-/models/
+/models/indobert-fold0/checkpoint-950
+/models/indobert-fold0/checkpoint-1900
+/models/indobert-fold0/checkpoint-2850
+/models/indobert-fold1
+/models/indobert-fold2
+/models/indobert-fold3
+/models/indobert-fold4
+/models/indobert-hoax
 /explore/
 /exploration/
 /logs/
