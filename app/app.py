@@ -104,15 +104,27 @@ if submit:
         
         with torch.no_grad():
             outputs = model(**inputs)
-            probs = torch.nn.functional.softmax(outputs.logits, dim=1)
+            TEMPERATURE = 1.5  # scale down certainty
+            logits = outputs.logits / TEMPERATURE
+            probs = torch.nn.functional.softmax(logits, dim=1)
             pred = torch.argmax(probs, dim=1).item()
             confidence = probs[0][pred].item()
-        
+
+        def describe_confidence(score):
+            if score > 0.95:
+                return "Sangat Yakin"
+            elif score > 0.85:
+                return "Cukup Yakin"
+            elif score > 0.6:
+                return "Yakin"
+            else:
+                return "Kurang Yakin"
+
         st.markdown("## Hasil Deteksi")
         result_label = "🚨 **Hoax**" if pred == 1 else "✅ **Valid**"
         st.success(f"Hasil Deteksi: {result_label}")
-        st.markdown(f"**Tingkat Keyakinan:** {confidence:.2%}")
-        
+        st.markdown(f"**Tingkat Keyakinan:** {confidence:.2%} ({describe_confidence(confidence)})")
+
         if confidence < 0.60:
             st.warning("⚠️ Hasil deteksi kurang meyakinkan. Harap verifikasi ulang informasi ini.")
 
