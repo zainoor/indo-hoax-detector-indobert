@@ -1,15 +1,14 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
 import torch
 from langdetect import detect
 import re
-from summa.summarizer import summarize
 import nltk
 
 # --- Streamlit Config ---
 st.set_page_config(page_title="Deteksi Berita Hoaks", layout="centered")
 
-# Ensure NLTK tokenizer is available
+# --- NLTK Download ---
 try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
@@ -28,7 +27,7 @@ def fix_summary_capitalization(text):
 # --- Load IndoBERT ---
 @st.cache_resource
 def load_model():
-    model_path = "models/indobert-fold0/checkpoint-3800"  # Update with your final/best model path
+    model_path = "models/indobert-fold0/checkpoint-3800"  # Ganti dengan path model terbaik kamu
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = AutoModelForSequenceClassification.from_pretrained(model_path)
     model.eval()
@@ -36,10 +35,32 @@ def load_model():
 
 tokenizer, model = load_model()
 
+# --- Load Summarizer ---
+@st.cache_resource
+def load_summarizer():
+    model_name = "indobenchmark/indobart"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    return tokenizer, model
+
+sum_tokenizer, sum_model = load_summarizer()
+
+def summarize_text_indo(text):
+    inputs = sum_tokenizer([text], return_tensors="pt", max_length=1024, truncation=True)
+    summary_ids = sum_model.generate(
+        inputs["input_ids"],
+        max_length=150,
+        min_length=30,
+        length_penalty=2.0,
+        num_beams=4,
+        early_stopping=True,
+    )
+    return sum_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
 # --- UI Header ---
 st.markdown("<h1 style='text-align: center;'>Deteksi Berita Hoaks 🔎</h1>", unsafe_allow_html=True)
 
-# --- Input Section ---
+# --- UI Styling ---
 st.markdown("""
     <style>
     .custom-box {
@@ -77,6 +98,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- Input Section ---
 st.markdown("<div class='custom-box'><h3>📰 Masukkan Artikel Berita</h3>", unsafe_allow_html=True)
 
 text = st.text_area(
@@ -89,7 +111,7 @@ text = st.text_area(
 submit = st.button("🔍 Periksa")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- Predict with IndoBERT ---
+# --- Predict ---
 if submit:
     text = text.strip()
     if not text:
@@ -104,7 +126,7 @@ if submit:
         
         with torch.no_grad():
             outputs = model(**inputs)
-            TEMPERATURE = 1.5  # scale down certainty
+            TEMPERATURE = 1.5
             logits = outputs.logits / TEMPERATURE
             probs = torch.nn.functional.softmax(logits, dim=1)
             pred = torch.argmax(probs, dim=1).item()
@@ -131,8 +153,7 @@ if submit:
         # Ringkasan
         st.markdown("### Ringkasan Artikel:")
         try:
-            raw_summary = summarize(cleaned, words=80)
-            summary_text = fix_summary_capitalization(raw_summary)
+            summary_text = summarize_text_indo(cleaned)
             if summary_text.strip():
                 st.info(summary_text)
             else:
