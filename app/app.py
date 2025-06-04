@@ -1,9 +1,12 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSequenceClassification  # hanya untuk model deteksi
 import torch
 from langdetect import detect
 import re
 import nltk
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer as SumyTokenizer
+from sumy.summarizers.lex_rank import LexRankSummarizer
 
 # --- Streamlit Config ---
 st.set_page_config(page_title="Deteksi Berita Hoaks", layout="centered")
@@ -15,14 +18,18 @@ except LookupError:
     nltk.download("punkt")
 
 # --- Helpers ---
+
 def clean_text(text):
     return text.lower().strip()
+
 
 def is_valid_input(text):
     return len(text.strip()) >= 30 and re.search(r"[a-zA-Z]{3,}", text)
 
+
 def fix_summary_capitalization(text):
     return ". ".join(sentence.strip().capitalize() for sentence in text.split(".") if sentence).strip() + "."
+
 
 # --- Load IndoBERT ---
 @st.cache_resource
@@ -33,35 +40,30 @@ def load_model():
     model.eval()
     return tokenizer, model
 
+
 tokenizer, model = load_model()
 
-# --- Load Summarizer ---
+# --- Load LexRank Summarizer (offline) ---
 @st.cache_resource
-def load_summarizer():
-    model_name = "indobenchmark/indobart"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    return tokenizer, model
+def get_summarizer():
+    """Return a cached instance of LexRankSummarizer."""
+    return LexRankSummarizer()
 
-sum_tokenizer, sum_model = load_summarizer()
+summarizer = get_summarizer()
 
-def summarize_text_indo(text):
-    inputs = sum_tokenizer([text], return_tensors="pt", max_length=1024, truncation=True)
-    summary_ids = sum_model.generate(
-        inputs["input_ids"],
-        max_length=150,
-        min_length=30,
-        length_penalty=2.0,
-        num_beams=4,
-        early_stopping=True,
-    )
-    return sum_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+def summarize_text_indo(text, sentences_count: int = 3):
+    """Ringkas teks Bahasa Indonesia menggunakan LexRank."""
+    parser = PlaintextParser.from_string(text, SumyTokenizer("english"))  # Pakai English karena Indonesian tidak tersedia
+    summary_sentences = summarizer(parser.document, sentences_count=sentences_count)
+    summary = " ".join(str(sentence) for sentence in summary_sentences)
+    return fix_summary_capitalization(summary) if summary else ""
 
 # --- UI Header ---
 st.markdown("<h1 style='text-align: center;'>Deteksi Berita Hoaks 🔎</h1>", unsafe_allow_html=True)
 
 # --- UI Styling ---
-st.markdown("""
+st.markdown(
+    """
     <style>
     .custom-box {
         background-color: #ffffff;
@@ -123,7 +125,7 @@ if submit:
     else:
         cleaned = clean_text(text)
         inputs = tokenizer(cleaned, return_tensors="pt", truncation=True, padding=True, max_length=256)
-        
+
         with torch.no_grad():
             outputs = model(**inputs)
             TEMPERATURE = 1.5
@@ -166,9 +168,11 @@ st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 st.markdown("""---""")
 
 with st.expander("Tentang Aplikasi ℹ️", expanded=False):
-    st.markdown("""
-    Aplikasi ini digunakan untuk mendeteksi apakah sebuah artikel mengandung informasi hoaks atau tidak berdasarkan teks yang dimasukkan.
-    """)
+    st.markdown(
+        """
+        Aplikasi ini digunakan untuk mendeteksi apakah sebuah artikel mengandung informasi hoaks atau tidak berdasarkan teks yang dimasukkan.
+        """
+    )
 
 st.markdown(
     """
@@ -177,5 +181,5 @@ st.markdown(
         Dibuat oleh <b>Mohammad Ramadhan Zainoor</b> · © 2025 · <a href="https://github.com/zainoor" target="_blank">GitHub Repo</a>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
