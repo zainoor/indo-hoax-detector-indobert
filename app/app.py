@@ -1,67 +1,42 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSequenceClassification  # hanya untuk model deteksi
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from langdetect import detect
 import re
-import nltk
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer as SumyTokenizer
-from sumy.summarizers.lex_rank import LexRankSummarizer
+from summa.summarizer import summarize
 
-# --- Streamlit Config ---
+# --- Konfigurasi Streamlit ---
 st.set_page_config(page_title="Deteksi Berita Hoaks", layout="centered")
 
-# --- NLTK Download ---
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
-
-# --- Helpers ---
-
+# --- Helper ---
 def clean_text(text):
     return text.lower().strip()
-
 
 def is_valid_input(text):
     return len(text.strip()) >= 30 and re.search(r"[a-zA-Z]{3,}", text)
 
-
-def fix_summary_capitalization(text):
-    return ". ".join(sentence.strip().capitalize() for sentence in text.split(".") if sentence).strip() + "."
-
-
-# --- Load IndoBERT ---
+# --- Load IndoBERT hoax-detector ---
 @st.cache_resource
-def load_model():
-    model_path = "models/indobert-fold0/checkpoint-3800"  # Ganti dengan path model terbaik kamu
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSequenceClassification.from_pretrained(model_path)
-    model.eval()
-    return tokenizer, model
+def load_classifier():
+    model_path = "models/indobert-fold0/checkpoint-3800"
+    tok = AutoTokenizer.from_pretrained(model_path)
+    mdl = AutoModelForSequenceClassification.from_pretrained(model_path)
+    mdl.eval()
+    return tok, mdl
 
+tokenizer, model = load_classifier()
 
-tokenizer, model = load_model()
+def summarize_text(text):
+    summary = summarize(text, ratio=0.2)
+    return summary.strip() if summary else "Teks terlalu pendek untuk diringkas."
 
-# --- Load LexRank Summarizer (offline) ---
-@st.cache_resource
-def get_summarizer():
-    """Return a cached instance of LexRankSummarizer."""
-    return LexRankSummarizer()
+# ---------- UI ----------
+st.markdown(
+    "<h1 style='text-align: center;'>Deteksi Berita Hoaks 🔎 (IndoBERT)</h1>",
+    unsafe_allow_html=True,
+)
 
-summarizer = get_summarizer()
-
-def summarize_text_indo(text, sentences_count: int = 3):
-    """Ringkas teks Bahasa Indonesia menggunakan LexRank."""
-    parser = PlaintextParser.from_string(text, SumyTokenizer("english"))  # Pakai English karena Indonesian tidak tersedia
-    summary_sentences = summarizer(parser.document, sentences_count=sentences_count)
-    summary = " ".join(str(sentence) for sentence in summary_sentences)
-    return fix_summary_capitalization(summary) if summary else ""
-
-# --- UI Header ---
-st.markdown("<h1 style='text-align: center;'>Deteksi Berita Hoaks 🔎</h1>", unsafe_allow_html=True)
-
-# --- UI Styling ---
+# CSS Styling
 st.markdown(
     """
     <style>
@@ -98,22 +73,24 @@ st.markdown(
         transform: scale(1.04);
     }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-# --- Input Section ---
+# ----- Input -----
 st.markdown("<div class='custom-box'><h3>📰 Masukkan Artikel Berita</h3>", unsafe_allow_html=True)
 
 text = st.text_area(
-    label="",
+    label="Masukkan teks artikel",
     height=200,
     placeholder="Petunjuk:\nMasukkan teks dari sumber online\nGunakan Bahasa Indonesia\nMinimal 30 karakter",
-    label_visibility="collapsed"
+    label_visibility="collapsed",
 )
 
 submit = st.button("🔍 Periksa")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- Predict ---
+# ----- Prediksi -----
 if submit:
     text = text.strip()
     if not text:
@@ -145,27 +122,25 @@ if submit:
                 return "Kurang Yakin"
 
         st.markdown("## Hasil Deteksi")
-        result_label = "🚨 **Hoax**" if pred == 1 else "✅ **Valid**"
-        st.success(f"Hasil Deteksi: {result_label}")
+        label = "🚨 **Hoax**" if pred == 1 else "✅ **Valid**"
+        st.success(f"Hasil Deteksi: {label}")
         st.markdown(f"**Tingkat Keyakinan:** {confidence:.2%} ({describe_confidence(confidence)})")
 
         if confidence < 0.60:
             st.warning("⚠️ Hasil deteksi kurang meyakinkan. Harap verifikasi ulang informasi ini.")
 
-        # Ringkasan
+        # ----- Ringkasan -----
         st.markdown("### Ringkasan Artikel:")
         try:
-            summary_text = summarize_text_indo(cleaned)
-            if summary_text.strip():
-                st.info(summary_text)
-            else:
-                st.info("Teks terlalu pendek untuk diringkas secara otomatis.")
+            summary = summarize_text(cleaned)
+            st.info(summary)
         except Exception as e:
             st.warning(f"Gagal membuat ringkasan: {e}")
 
-# --- Footer ---
+
+# ----- Footer -----
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
-st.markdown("""---""")
+st.markdown("---")
 
 with st.expander("Tentang Aplikasi ℹ️", expanded=False):
     st.markdown(
@@ -178,7 +153,8 @@ st.markdown(
     """
     <hr style='border-top: 1px solid #bbb;'>
     <div style='text-align: center; font-size: 14px;'>
-        Dibuat oleh <b>Mohammad Ramadhan Zainoor</b> · © 2025 · <a href="https://github.com/zainoor" target="_blank">GitHub Repo</a>
+        Dibuat oleh <b>Mohammad Ramadhan Zainoor</b> · © 2025 ·
+        <a href="https://github.com/zainoor" target="_blank">GitHub Repo</a>
     </div>
     """,
     unsafe_allow_html=True,
