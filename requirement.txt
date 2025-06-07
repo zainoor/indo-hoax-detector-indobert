@@ -1,0 +1,14 @@
+datasets
+langdetect
+matplotlib
+numpy
+os
+pandas
+seaborn
+sklearn
+streamlit
+summa
+torch
+tqdm
+transformers
+unidecode
