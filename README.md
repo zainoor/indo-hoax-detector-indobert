@@ -8,7 +8,7 @@ A hoax detection system for Bahasa Indonesia news articles using IndoBERT (`indo
 
 ```
 .
-├── app/                         # Streamlit app interface
+├── app/                        # Streamlit app interface
 ├── cleandata/                  # Cleaned + merged labeled datasets
 │   ├── hoax_dataset_2025.csv   # Evaluation dataset (2025)
 │   └── hoax_dataset_merged.csv # Merged training dataset
@@ -22,7 +22,7 @@ A hoax detection system for Bahasa Indonesia news articles using IndoBERT (`indo
 │   ├── turnbackhoax.xlsx
 │   ├── hoax_valid_labeled.csv
 │   └── random_news.csv         # Additional 2025 labeled dataset
-├── logs/, models/, results/    # Outputs from training and evaluation
+├── models/, results/           # Outputs from training and evaluation
 ├── script/                     # Training and preprocessing scripts
 ├── .streamlit/                 # Streamlit app config
 ├── requirement.txt
@@ -95,7 +95,7 @@ All datasets are manually labeled prior to training and evaluation.
 | `tempo.xlsx`             | News articles from Tempo (from Kaggle dataset)                               |
 | `turnbackhoax.xlsx`      | Hoax articles from TurnBackHoax.id (from Kaggle dataset)                     |
 | `hoax_valid_labeled.csv` | Mixed-source dataset (manually relabeled: `Hoax`/`Valid` → `0`/`1`)          |
-| `random_news.csv`        | Additional 2025 news articles (source unspecified; manually labeled `0`/`1`) |
+| `random_news.csv`        | Additional news articles (source unspecified; manually labeled `0`/`1`)      |
 
 📦 CNN, Kompas, Tempo, and TurnBackHoax are sourced from the Kaggle dataset:
 🔗 [https://www.kaggle.com/datasets/linkgish/indonesian-fact-and-hoax-political-news](https://www.kaggle.com/datasets/linkgish/indonesian-fact-and-hoax-political-news)
