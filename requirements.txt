@@ -1,8 +1,5 @@
-datasets
-langdetect
-matplotlib
-numpy
-pandas
-scikit-learn
-transformers
 streamlit
+transformers
+torch
+langdetect
+summa
