@@ -5,7 +5,6 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trai
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report, confusion_matrix
 import numpy as np
-import torch
 from tqdm import tqdm
 import seaborn as sns
 import matplotlib.pyplot as plt

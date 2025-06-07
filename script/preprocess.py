@@ -39,12 +39,12 @@ turnbackhoax = process_xlsx("turnbackhoax", "Narasi", "hoax")
 hoax_valid = pd.read_csv(os.path.join(data_path, "hoax_valid_labeled.csv"))
 hoax_valid = hoax_valid[["berita", "label"]].rename(columns={"berita": "text"})
 
-politik = pd.read_csv(os.path.join(data_path, "politik.csv"))
-politik["text"] = politik["judul"].fillna('') + " " + politik["narasi"].fillna('')
-politik = politik[["text", "label"]]
+random_news = pd.read_csv(os.path.join(data_path, "random_news.csv"))
+random_news["text"] = random_news["judul"].fillna('') + " " + random_news["narasi"].fillna('')
+random_news = random_news[["text", "label"]]
 
 # Combine
-all_data = pd.concat([cnn, kompas, tempo, turnbackhoax, hoax_valid, politik], ignore_index=True)
+all_data = pd.concat([cnn, kompas, tempo, turnbackhoax, hoax_valid, random_news], ignore_index=True)
 
 # Drop missing
 all_data = all_data.dropna(subset=["text", "label"])
