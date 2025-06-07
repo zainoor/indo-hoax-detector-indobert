@@ -18,7 +18,7 @@ def is_valid_input(text):
 # --- Load IndoBERT hoax-detector ---
 @st.cache_resource
 def load_classifier():
-    model_path = "models/indobert-fold0/checkpoint-3800"
+    model_path = "indo-hoax-detector-indobert"
     tok = AutoTokenizer.from_pretrained(model_path)
     mdl = AutoModelForSequenceClassification.from_pretrained(model_path)
     mdl.eval()
