@@ -105,26 +105,35 @@ if submit:
 
         with torch.no_grad():
             outputs = model(**inputs)
-            TEMPERATURE = 1.5
-            logits = outputs.logits / TEMPERATURE
-            probs = torch.nn.functional.softmax(logits, dim=1)
+
+            # ✅ Solusi: kalibrasi confidence menggunakan temperature scaling
+            TEMPERATURE = 2.5  # Naikkan sesuai hasil eksperimen
+            logits = outputs.logits
+
+            # 🔧 Kurangi efek overconfidence dengan clipping + smoothing
+            logits = torch.clamp(logits, -4, 4)  # Batasi range logit
+            probs = torch.nn.functional.softmax(logits / 2.5, dim=1)  # scaling
+
             pred = torch.argmax(probs, dim=1).item()
             confidence = probs[0][pred].item()
 
         def describe_confidence(score):
             if score > 0.95:
-                return "Sangat Yakin"
+                return "Sangat Yakin 🔥"
             elif score > 0.85:
-                return "Cukup Yakin"
+                return "Cukup Yakin 👍"
             elif score > 0.6:
-                return "Yakin"
+                return "Yakin 🙂"
             else:
-                return "Kurang Yakin"
+                return "Kurang Yakin 🤔"
 
+        # ----- Hasil Deteksi -----
         st.markdown("## Hasil Deteksi")
         label = "🚨 **Hoax**" if pred == 1 else "✅ **Valid**"
         st.success(f"Hasil Deteksi: {label}")
         st.markdown(f"**Tingkat Keyakinan:** {confidence:.2%} ({describe_confidence(confidence)})")
+
+        st.progress(confidence)
 
         if confidence < 0.60:
             st.warning("⚠️ Hasil deteksi kurang meyakinkan. Harap verifikasi ulang informasi ini.")
@@ -136,7 +145,6 @@ if submit:
             st.info(summary)
         except Exception as e:
             st.warning(f"Gagal membuat ringkasan: {e}")
-
 
 # ----- Footer -----
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
