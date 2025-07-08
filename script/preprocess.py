@@ -1,61 +1,25 @@
 import pandas as pd
-import re
-import os
-from tqdm import tqdm
-from unidecode import unidecode
 
-tqdm.pandas()
+# 1. Baca file
+politik_df = pd.read_csv("rawdata/politik.csv")
+scraped_df = pd.read_csv("rawdata/scraped.csv")
 
-# Cleaning function
-def clean_text(text):
-    if pd.isnull(text):
-        return ""
-    text = str(text)
-    text = re.sub(r"http\S+|www.\S+", "", text)
-    text = re.sub(r"<.*?>", "", text)
-    text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
-    text = unidecode(text.lower())
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+# 2. Bersihkan baris kosong atau yang tidak lengkap
+politik_df.dropna(subset=['Title', 'FullText', 'Author', 'Url', 'Date', 'label', 'source'], inplace=True)
+scraped_df.dropna(subset=['Title', 'FullText', 'Author', 'Url', 'Date', 'label', 'source'], inplace=True)
 
-# Folder path
-data_path = "rawdata"
+# 3. Seimbangkan data dari politik.csv berdasarkan kolom label (misal: "hoax" dan "valid")
+min_count = politik_df['label'].value_counts().min()
+balanced_politik_df = (
+    politik_df.groupby('label')
+    .sample(n=min_count, random_state=42)
+    .reset_index(drop=True)
+)
 
-# Read XLSX files with tqdm
-def process_xlsx(file, text_col, label_col):
-    print(f"📥 Loading {file}.xlsx...")
-    df = pd.read_excel(os.path.join(data_path, file + ".xlsx"))
-    df = df[[text_col, label_col]]
-    df.columns = ["text", "label"]
-    return df
+# 4. Gabungkan data balanced politik dan scraped
+combined_df = pd.concat([balanced_politik_df, scraped_df], ignore_index=True)
 
-print("🔄 Reading all files...")
+# 5. Simpan hasilnya
+combined_df.to_csv("rawdata/hasil_gabungan_seimbang.csv", index=False)
 
-cnn = process_xlsx("cnn", "text_new", "hoax")
-kompas = process_xlsx("kompas", "text_new", "hoax")
-tempo = process_xlsx("tempo", "text_new", "hoax")
-turnbackhoax = process_xlsx("turnbackhoax", "Narasi", "hoax")
-
-hoax_valid = pd.read_csv(os.path.join(data_path, "hoax_valid_labeled.csv"))
-hoax_valid = hoax_valid[["berita", "label"]].rename(columns={"berita": "text"})
-
-random_news = pd.read_csv(os.path.join(data_path, "random_news.csv"))
-random_news["text"] = random_news["judul"].fillna('') + " " + random_news["narasi"].fillna('')
-random_news = random_news[["text", "label"]]
-
-# Combine
-all_data = pd.concat([cnn, kompas, tempo, turnbackhoax, hoax_valid, random_news], ignore_index=True)
-
-# Drop missing
-all_data = all_data.dropna(subset=["text", "label"])
-
-# Clean text with tqdm
-print("🧹 Cleaning text...")
-all_data["cleaned"] = all_data["text"].progress_apply(clean_text)
-
-# Final output
-final_df = all_data[["cleaned", "label"]].dropna().reset_index(drop=True)
-
-# Save
-final_df.to_csv("cleandata/hoax_dataset_merged.csv", index=False)
-print("✅ Done. Final shape:", final_df.shape)
+print(f"Gabungan selesai. Jumlah total data: {len(combined_df)}")
