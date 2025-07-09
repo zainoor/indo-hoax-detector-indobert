@@ -1,25 +1,29 @@
 import pandas as pd
+import re
 
-# 1. Baca file
-politik_df = pd.read_csv("rawdata/politik.csv")
-scraped_df = pd.read_csv("rawdata/scraped.csv")
+# BACA FILE CSV (ganti dengan nama file kamu)
+df = pd.read_csv("rawdata/combine.csv")  # <- ganti sesuai nama file asli
 
-# 2. Bersihkan baris kosong atau yang tidak lengkap
-politik_df.dropna(subset=['Title', 'FullText', 'Author', 'Url', 'Date', 'label', 'source'], inplace=True)
-scraped_df.dropna(subset=['Title', 'FullText', 'Author', 'Url', 'Date', 'label', 'source'], inplace=True)
+# FUNGSI CLEANING
+def clean_text(text):
+    text = str(text).lower()  # case folding
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text)  # hapus URL
+    text = re.sub(r'\b(?:com|www|http|https|twitter|facebook|tiktok|instagram|youtube)\b', '', text)  # hapus kata platform
+    text = re.sub(r'@\w+', '', text)  # hapus mention
+    text = re.sub(r'#\w+', '', text)  # hapus hashtag
+    text = re.sub(r'\([^)]*\)', '', text)  # hapus isi dalam tanda kurung
+    text = re.sub(r'\s+', ' ', text).strip()  # hapus spasi berlebih
+    return text
 
-# 3. Seimbangkan data dari politik.csv berdasarkan kolom label (misal: "hoax" dan "valid")
-min_count = politik_df['label'].value_counts().min()
-balanced_politik_df = (
-    politik_df.groupby('label')
-    .sample(n=min_count, random_state=42)
-    .reset_index(drop=True)
-)
+# CLEANING
+df = df[['FullText', 'label']].dropna()  # pastikan kolom tersedia
+df['cleaned'] = df['FullText'].apply(clean_text)
 
-# 4. Gabungkan data balanced politik dan scraped
-combined_df = pd.concat([balanced_politik_df, scraped_df], ignore_index=True)
+# PILIH HANYA 2 KOLOM SAJA
+df_final = df[['cleaned', 'label']]
 
-# 5. Simpan hasilnya
-combined_df.to_csv("rawdata/hasil_gabungan_seimbang.csv", index=False)
+# SIMPAN KE FILE BARU
+df_final.to_csv("cleandata/train_dataset.csv", index=False)
 
-print(f"Gabungan selesai. Jumlah total data: {len(combined_df)}")
+print("✅ File berhasil dibuat: cleandata/train_dataset.csv")
+print(df_final.head())
