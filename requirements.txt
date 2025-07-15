@@ -1,5 +1,9 @@
 streamlit
 transformers
 torch
+datasets
 langdetect
 summa
+regex  
+numpy
+pandas

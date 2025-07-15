@@ -18,7 +18,7 @@ from transformers import (
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-# ✅ 1. Clean text
+# Clean text
 def clean_text(text):
     text = str(text).lower()
     text = re.sub(r"http\S+|www\S+|https\S+", "", text)
@@ -29,14 +29,14 @@ def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-# ✅ 2. Load dataset
+# Load dataset
 def load_dataset(path_csv):
     df = pd.read_csv(path_csv)
     df["cleaned"] = df["cleaned"].astype(str).apply(clean_text)
     df["label"] = df["label"].astype(int)
     return Dataset.from_pandas(df[["cleaned", "label"]])
 
-# ✅ 3. Tokenization
+# Tokenization
 def tokenize_dataset(dataset, tokenizer_name="indobenchmark/indobert-base-p1", max_length=256):
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     def tokenize(batch):
@@ -45,7 +45,7 @@ def tokenize_dataset(dataset, tokenizer_name="indobenchmark/indobert-base-p1", m
     tokenized = tokenized.rename_column("label", "labels")
     return tokenized.remove_columns(["cleaned"]).with_format("torch")
 
-# ✅ 4. Metrics
+# Metrics
 def compute_metrics(pred):
     labels = pred.label_ids
     preds = np.argmax(pred.predictions, axis=1)
@@ -53,19 +53,19 @@ def compute_metrics(pred):
     acc = accuracy_score(labels, preds)
     return {"accuracy": acc, "precision": precision, "recall": recall, "f1": f1}
 
-# ✅ 5. Logging callback
+# Logging callback
 class LoggingCallback(TrainerCallback):
     def __init__(self):
         self.logs = []
 
     def on_log(self, args, state, control, logs=None, **kwargs):
-        if logs and 'epoch' in logs:
+        if logs:  # Simpan semua log
             self.logs.append(logs)
 
     def to_dataframe(self):
         return pd.DataFrame(self.logs)
 
-# ✅ 6. Training
+# Training
 def train_model(dataset, model_name="indobenchmark/indobert-base-p1", output_dir="trained_model"):
     # ❗ Bersihkan folder output jika sudah ada
     if os.path.exists(output_dir):
@@ -82,12 +82,14 @@ def train_model(dataset, model_name="indobenchmark/indobert-base-p1", output_dir
 
     training_args = TrainingArguments(
         output_dir=output_dir,
-        eval_strategy="epoch",
+        eval_strategy="epoch",        
+        eval_steps=100,               # evaluasi tiap 100 langkah
         save_strategy="epoch",
+        save_steps=100,
         learning_rate=2e-5,
         per_device_train_batch_size=16,
         per_device_eval_batch_size=16,
-        num_train_epochs=4,
+        num_train_epochs=10,
         weight_decay=0.01,
         load_best_model_at_end=True,
         metric_for_best_model="f1",
@@ -113,18 +115,18 @@ def train_model(dataset, model_name="indobenchmark/indobert-base-p1", output_dir
     metrics = trainer.evaluate()
     print("📊 Final Evaluation:", metrics)
 
-    # ✅ Simpan model terbaik
+    # Simpan model terbaik
     best_model_dir = os.path.join(output_dir, "best_model")
     os.makedirs(best_model_dir, exist_ok=True)
     trainer.model.save_pretrained(best_model_dir)
     tokenizer.save_pretrained(best_model_dir)
     print(f"✅ Best model saved to: {best_model_dir}")
 
-    # ✅ Simpan log ke CSV
+    # Simpan log ke CSV
     log_df = callback.to_dataframe()
     log_df.to_csv(os.path.join(output_dir, "training_log.csv"), index=False)
 
-    # ✅ Grafik Loss
+    # Grafik Loss
     if 'loss' in log_df.columns:
         plt.figure(figsize=(8, 4))
         sns.lineplot(x=log_df["epoch"], y=log_df["loss"], label="Train Loss")
@@ -138,7 +140,7 @@ def train_model(dataset, model_name="indobenchmark/indobert-base-p1", output_dir
         plt.savefig(os.path.join(output_dir, "loss_curve.png"))
         plt.close()
 
-    # ✅ Grafik F1 Score
+    # Grafik F1 Score
     if 'eval_f1' in log_df.columns:
         plt.figure(figsize=(6, 4))
         sns.lineplot(x=log_df["epoch"], y=log_df["eval_f1"], label="Val F1")
@@ -151,7 +153,7 @@ def train_model(dataset, model_name="indobenchmark/indobert-base-p1", output_dir
 
     return trainer
 
-# ✅ 7. Main
+# 7. Main
 def main():
     print("🔎 Loading and preprocessing data...")
     dataset = load_dataset("cleandata/train_dataset.csv")

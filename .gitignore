@@ -7,3 +7,8 @@
 /indo-hoax-detector-models/
 /indo-hoax-detector-indobert/
 /trained_model/
+/new_results/
+/wandb/
+/results_indobert/
+/rawdata/
+/tmp_trainer/
