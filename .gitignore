@@ -12,3 +12,6 @@
 /results_indobert/
 /rawdata/
 /tmp_trainer/
+/saved_model/
+/evaluation/
+/preprocessing_script/
